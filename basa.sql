@@ -72,3 +72,89 @@ INSERT INTO EmployeeOrders (employee_id, order_id, role) VALUES
   (3, 2, 'Developer'),
   (4, 3, 'Manager'),
   (5, 4, 'QA Engineer');
+
+
+-- Триггер перед удалением из таблицы "Clients"
+DELIMITER //
+CREATE TRIGGER before_delete_clients
+BEFORE DELETE ON Clients
+FOR EACH ROW
+BEGIN
+  DECLARE client_has_orders INT;
+
+  -- Проверяем, есть ли у клиента связанные заказы
+  SELECT COUNT(*) INTO client_has_orders FROM Orders WHERE client_id = OLD.id;
+
+  -- Если у клиента есть заказы, отменяем удаление
+  IF client_has_orders > 0 THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Cannot delete client. Client has associated orders.';
+  END IF;
+END;
+//
+DELIMITER ;
+
+-- Триггер перед удалением из таблицы "Products"
+DELIMITER //
+CREATE TRIGGER before_delete_products
+BEFORE DELETE ON Products
+FOR EACH ROW
+BEGIN
+  DECLARE product_has_orders INT;
+
+  -- Проверяем, есть ли у продукта связанные заказы
+  SELECT COUNT(*) INTO product_has_orders FROM Orders WHERE product_id = OLD.id;
+
+  -- Если у продукта есть заказы, отменяем удаление
+  IF product_has_orders > 0 THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Cannot delete product. Product has associated orders.';
+  END IF;
+END;
+//
+DELIMITER ;
+
+-- Триггер перед обновлением таблицы "Orders"
+DELIMITER //
+CREATE TRIGGER before_update_orders
+BEFORE UPDATE ON Orders
+FOR EACH ROW
+BEGIN
+  -- Проверяем, что статус заказа является допустимым
+  IF NEW.status NOT IN ('Processing', 'Shipped', 'Pending', 'Completed') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Invalid order status.';
+  END IF;
+END;
+//
+DELIMITER ;
+
+-- Триггер перед обновлением таблицы "Employees"
+DELIMITER //
+CREATE TRIGGER before_update_employees
+BEFORE UPDATE ON Employees
+FOR EACH ROW
+BEGIN
+  -- Проверяем, что должность сотрудника является допустимой
+  IF NEW.position NOT IN ('Manager', 'Developer', 'QA Engineer') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Invalid employee position.';
+  END IF;
+END;
+//
+DELIMITER ;
+
+-- Триггер перед вставкой в таблицу "EmployeeOrders"
+DELIMITER //
+CREATE TRIGGER before_insert_employee_orders
+BEFORE INSERT ON EmployeeOrders
+FOR EACH ROW
+BEGIN
+  -- Проверяем, что роль сотрудника в заказе является допустимой
+  IF NEW.role NOT IN ('Manager', 'Developer', 'QA Engineer') THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Invalid role in EmployeeOrders.';
+  END IF;
+END;
+//
+DELIMITER ;
