@@ -88,7 +88,7 @@ BEGIN
   -- Если у клиента есть заказы, отменяем удаление
   IF client_has_orders > 0 THEN
     SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Cannot delete client. Client has associated orders.';
+    SET MESSAGE_TEXT = 'Не удается удалить клиента. У клиента есть связанные заказы.';
   END IF;
 END;
 //
@@ -108,7 +108,7 @@ BEGIN
   -- Если у продукта есть заказы, отменяем удаление
   IF product_has_orders > 0 THEN
     SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Cannot delete product. Product has associated orders.';
+    SET MESSAGE_TEXT = 'Не удается удалить продукт. С продуктом связаны заказы.';
   END IF;
 END;
 //
@@ -123,7 +123,7 @@ BEGIN
   -- Проверяем, что статус заказа является допустимым
   IF NEW.status NOT IN ('Processing', 'Shipped', 'Pending', 'Completed') THEN
     SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Invalid order status.';
+    SET MESSAGE_TEXT = 'Недействительный статус заказа.';
   END IF;
 END;
 //
@@ -138,23 +138,35 @@ BEGIN
   -- Проверяем, что должность сотрудника является допустимой
   IF NEW.position NOT IN ('Manager', 'Developer', 'QA Engineer') THEN
     SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Invalid employee position.';
+    SET MESSAGE_TEXT = 'Недопустимая должность сотрудника.';
   END IF;
 END;
 //
 DELIMITER ;
 
--- Триггер перед вставкой в таблицу "EmployeeOrders"
 DELIMITER //
-CREATE TRIGGER before_insert_employee_orders
-BEFORE INSERT ON EmployeeOrders
+CREATE TRIGGER before_update_orders_status
+BEFORE UPDATE ON Orders
 FOR EACH ROW
 BEGIN
-  -- Проверяем, что роль сотрудника в заказе является допустимой
-  IF NEW.role NOT IN ('Manager', 'Developer', 'QA Engineer') THEN
+  IF OLD.status = 'Completed' THEN
     SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Invalid role in EmployeeOrders.';
+    SET MESSAGE_TEXT = 'Не удается обновить статус выполненного заказа.';
   END IF;
 END;
 //
 DELIMITER ;
+
+DELIMITER //
+CREATE TRIGGER before_insert_update_products_name_unique
+BEFORE INSERT OR UPDATE ON Products
+FOR EACH ROW
+BEGIN
+  IF (SELECT COUNT(*) FROM Products WHERE name = NEW.name AND id != NEW.id) > 0 THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Продукт с таким названием уже существует.';
+  END IF;
+END;
+//
+DELIMITER ;
+
